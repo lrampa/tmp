@@ -2,6 +2,12 @@ import numpy as np
 import pandas as pd
 import sys
 
+# Execution (provided that there is 5040 permutations to combine): 
+#   python gokart_positions.py 0 1259
+#   python gokart_positions.py 1260 2519
+#   python gokart_positions.py 2520 3779
+#   python gokart_positions.py 3780 5039
+
 # Python function to print permutations of a given list
 def permutation(lst):
 
