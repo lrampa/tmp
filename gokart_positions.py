@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import sys
 
 # Python function to print permutations of a given list
 def permutation(lst):
@@ -32,31 +33,40 @@ def permutation(lst):
             l.append([m] + p)
     return l
 
+def is_unique(df):
+    for i in range(len(df.columns)):
+        if (not df[i].is_unique):
+            return False
+    return True
 
-num_of_karts = [1,2,3,4,5,6,7]
-perms = permutation(num_of_karts)
+karts = [1,2,3,4,5,6,7]
+perms = permutation(karts)
 
-lastmaxmin = len(num_of_karts)
+lastmaxmin = len(karts)
 
-for i in range(len(perms)):
+print(len(perms))
+lower = int(sys.argv[1])    
+upper = int(sys.argv[2])
+print(f"lower, upper = {lower},{upper}")
+for i in range(lower, upper):
     print(".")
     for j in range(len(perms)):
-        # print("/")
+        print("/")
         df = pd.DataFrame([
             perms[i],
             perms[j]
         ])
-        if (not df[0].is_unique) or (not df[1].is_unique) or (not df[2].is_unique) or (not df[3].is_unique) or (not df[4].is_unique) or (not df[5].is_unique) or (not df[6].is_unique):
+        if not is_unique(df):
             continue
         
         for k in range(len(perms)):
-            # print("=")
+            print("=")
             df = pd.DataFrame([
                 perms[i],
                 perms[j],
                 perms[k]
             ])
-            if (not df[0].is_unique) or (not df[1].is_unique) or (not df[2].is_unique) or (not df[3].is_unique) or (not df[4].is_unique) or (not df[5].is_unique) or (not df[6].is_unique):
+            if not is_unique(df):
                 continue
                 
             for l in range(len(perms)):
@@ -67,7 +77,7 @@ for i in range(len(perms)):
                     perms[k],
                     perms[l]
                 ])
-                if (not df[0].is_unique) or (not df[1].is_unique) or (not df[2].is_unique) or (not df[3].is_unique) or (not df[4].is_unique) or (not df[5].is_unique) or (not df[6].is_unique):
+                if not is_unique(df):
                     continue
 
                 # print(df)
@@ -83,7 +93,7 @@ for i in range(len(perms)):
                 min2 = avgs.transpose().agg('min').iat[0]
                 max2 = avgs.transpose().agg('max').iat[0]
                 diff2 = max2 - min2
-                if diff2 < lastmaxmin:
+                if diff2 <= lastmaxmin and diff2 <= 1:
                     lastmaxmin = diff2
                     print(diff2)
                     print(df)
