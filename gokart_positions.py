@@ -1,6 +1,8 @@
 import numpy as np
 import pandas as pd
 import sys
+import itertools as it
+import math
 
 # Execution (provided that there is 5040 permutations to combine): 
 #   python gokart_positions.py 0 1259
@@ -8,70 +10,102 @@ import sys
 #   python gokart_positions.py 2520 3779
 #   python gokart_positions.py 3780 5039
 
-# Python function to print permutations of a given list
-def permutation(lst):
+# Based on example code at https://docs.python.org/3/library/itertools.html#itertools.permutations
+# But, apparently this is much slower than itertools implementation...
+# Added jump parameter to skip first jump permutations
+def permutations(iterable, r=None, jump=0):
+    # permutations('ABCD', 2) --> AB AC AD BA BC BD CA CB CD DA DB DC
+    # permutations(range(3)) --> 012 021 102 120 201 210
+    pool = tuple(iterable)
+    n = len(pool)
+    r = n if r is None else r
+    if r > n:
+        return
+    indices = list(range(n))
+    cycles = list(range(n, n-r, -1))
+    if jump == 0:
+        yield tuple(pool[i] for i in indices[:r])
+    else:
+        cycles[0] -= (jump - 1)
+        for i in range(0, jump):
+            indices[0], indices[i] = indices[i], indices[0]
+    while n:
+        iterations = reversed(range(r))
+        if jump > 0:
+            iterations = [0]
+            jump = 0
+        for i in iterations:
+            cycles[i] -= 1
+            if cycles[i] == 0:
+                indices[i:] = indices[i+1:] + indices[i:i+1]
+                cycles[i] = n - i
+            else:
+                j = cycles[i]
+                indices[i], indices[-j] = indices[-j], indices[i]
+                yield tuple(pool[i] for i in indices[:r])
+                break
+        else:
+            return
 
-    # If lst is empty then there are no permutations
-    if len(lst) == 0:
-        return []
-
-    # If there is only one element in lst then, only
-    # one permutation is possible
-    if len(lst) == 1:
-        return [lst]
-
-    # Find the permutations for lst if there are
-    # more than 1 characters
-
-    l = [] # empty list that will store current permutation
-
-    # Iterate the input(lst) and calculate the permutation
-    for i in range(len(lst)):
-        m = lst[i]
-
-        # Extract lst[i] or m from the list. remLst is
-        # remaining list
-        remLst = lst[:i] + lst[i+1:]
-
-        # Generating all permutations where m is first
-        # element
-        for p in permutation(remLst):
-            l.append([m] + p)
-    return l
-
-def is_unique(df):
-    for i in range(len(df.columns)):
-        if (not df[i].is_unique):
-            return False
+def is_unique_arr(all_perms):
+    number_of_columns = len(all_perms[0])
+    number_of_rows = len(all_perms)
+    for i in range(0, number_of_columns): # Iterate over columns
+        # Prepare empty array to record number of instances of each value
+        duplicates = [0] * number_of_columns
+        for j in range(0, number_of_rows): # Iterate over rows
+            old_count = duplicates[all_perms[j][i] - 1]
+            if old_count > 0:
+                return False
+            duplicates[all_perms[j][i] - 1] = old_count + 1
     return True
 
-def calc(level, lastmaxmin, indexes):
-    for i in range(len(perms)):
-        print(f"level {level}, indexes {indexes + [i]}", end='\r', flush=True)
+def calc_avgs(all_perms):
+    perms_count = len(all_perms)
+    perm_len = len(all_perms[0])
+    avgs = []
+    avg_min = sys.maxsize
+    avg_max = -sys.maxsize
+    for i in range(0, perm_len):
+        sum = 0
+        for j in range(0, perms_count):
+            sum = sum + all_perms[j][i]
+        avg = sum / perms_count
+        avgs.append(avg)
+        if avg < avg_min:
+            avg_min = avg
+        if avg > avg_max:
+            avg_max = avg
 
-        df_input_array = []
-        for idx in indexes:
-            df_input_array.append(perms[idx])
-        df_input_array.append(perms[i])
+    diff2 = avg_max - avg_min
+
+    return (diff2, avgs, all_perms)
+
+def calc(level, lastmaxmin, higher_perms):
+    print(f"Level: {level} - {lastmaxmin} - {higher_perms}")
+
+    perms = permutations(karts, jump=level-1)
+    #perms = it.permutations(karts)
+    i = 0
+    for perm in perms:
+        i = i + 1
+        print(f"level {level}, count {i}", end='\r', flush=True) if i % 100000 == 0 else None
+
+        all_perms = higher_perms + [perm]
         
-        df = pd.DataFrame(df_input_array)
-        
-        if not is_unique(df):
+        unique_arr = is_unique_arr(all_perms)
+        if not unique_arr:
             continue
 
         if level < stints:
             # We did not reach required number of stints yet
-            lastmaxmin = calc(level+1, lastmaxmin, indexes + [i])
+            lastmaxmin = calc(level=level+1, lastmaxmin=lastmaxmin, higher_perms=all_perms)
 
         elif level == stints:
             # We have reached required number of stints
             # Now we need to check if we have a solution
             # that is better than the previous one
-            avgs = df.agg(['average'])
-
-            min2 = avgs.transpose().agg('min').iat[0]
-            max2 = avgs.transpose().agg('max').iat[0]
-            diff2 = max2 - min2
+            (diff2, avgs, df) = calc_avgs(all_perms)
             if diff2 <= lastmaxmin and diff2 <= 1:
                 lastmaxmin = diff2
                 print() # newline
@@ -85,71 +119,17 @@ def calc(level, lastmaxmin, indexes):
 
     return lastmaxmin
 
+if __name__ == '__main__':
 
-karts = [1,2,3,4,5,6,7]
-perms = permutation(karts)
+    karts = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]
+    # karts = [1,2,3,4,5]
+    number_of_karts = len(karts)
 
-# lastmaxmin = len(karts)
+    stints = 6
+    # stints = 3
 
-stints = 4
+    print(f"number of permutations = {math.factorial(number_of_karts)}")
 
-print(f"number of permutations = {len(perms)}")
-
-# lower = int(sys.argv[1])    
-# upper = int(sys.argv[2])
-# print(f"lower, upper = {lower},{upper}")
-
-best_lastmaxmin = calc(1, len(karts), [])
-print() # newline
-print(f"best_lastmaxmin = {best_lastmaxmin}")
-
-# for i in range(lower, upper):
-#     print(".")
-#     for j in range(len(perms)):
-#         print("/")
-#         df = pd.DataFrame([
-#             perms[i],
-#             perms[j]
-#         ])
-#         if not is_unique(df):
-#             continue
-        
-#         for k in range(len(perms)):
-#             print("=")
-#             df = pd.DataFrame([
-#                 perms[i],
-#                 perms[j],
-#                 perms[k]
-#             ])
-#             if not is_unique(df):
-#                 continue
-                
-#             for l in range(len(perms)):
-#                 # Race is made of four runs
-#                 df = pd.DataFrame([
-#                     perms[i],
-#                     perms[j],
-#                     perms[k],
-#                     perms[l]
-#                 ])
-#                 if not is_unique(df):
-#                     continue
-
-#                 # print(df)
-                
-#                 avgs = df.agg(['average'])
-
-#                 avgs2 = avgs.agg('average')
-#                 # firstavg = avgs.iat[0,0]
-#                 # if avgs2 == firstavg:
-#                 #     df
-#                 #     avgs
-                
-#                 min2 = avgs.transpose().agg('min').iat[0]
-#                 max2 = avgs.transpose().agg('max').iat[0]
-#                 diff2 = max2 - min2
-#                 if diff2 <= lastmaxmin and diff2 <= 1:
-#                     lastmaxmin = diff2
-#                     print(diff2)
-#                     print(df)
-#                     print(avgs)
+    best_lastmaxmin = calc(level=1, lastmaxmin=number_of_karts, higher_perms=[])
+    print() # newline
+    print(f"best_lastmaxmin = {best_lastmaxmin}")
